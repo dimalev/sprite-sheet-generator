@@ -48,10 +48,20 @@ public class Main {
 		int i = 0;
 		for(BufferedImage img : list) {
 			rects[i] = new Rectangle(0, 0, img.getWidth(), img.getHeight());
+			mappings.put(rects[i], img);
 			++i;
 		}
-		Rectangle result = SpriteSheet.pack(rects);
 		
-		System.out.println("Count:" + list.size());
+		Rectangle result = SpriteSheet.pack(rects);
+		System.out.println("Size:" + result.width);
+		
+		BufferedImage sheet = new BufferedImage(result.width, result.height, BufferedImage.TYPE_INT_ARGB);
+		for(Rectangle rect : rects) {
+			System.out.println(rect.x + "x" + rect.y + " w=" + rect.width + ", h=" + rect.height);
+			sheet.getGraphics().drawImage(mappings.get(rect), rect.x, rect.y, null);
+		}
+		sheet.flush();
+		
+		ImageIO.write(sheet, "png", new File("sheet.png"));
 	}
 }

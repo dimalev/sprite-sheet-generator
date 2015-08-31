@@ -26,9 +26,20 @@ public class SpriteSheet {
 	}
 	
 	public static boolean packInRectangle(Rectangle[] rects, Rectangle target) {
-		Rectangle[] sorted = Arrays.sort(rects, new ByHeightFirst());
+		Arrays.sort(rects, new ByHeightFirst());
 		
-		
+		int top = 0, nextTop = 0, left = 0, count = rects.length;
+		for(int i = 0; i < count; ++i) {
+			if(left + rects[i].width > target.width) {
+				top = nextTop;
+				left = 0;
+			}
+			rects[i].x = left; rects[i].y = top;
+			nextTop = Math.max(nextTop, top + rects[i].height);
+			if(nextTop > target.height) return false;
+			left += rects[i].width;
+		}
+		return true;
 	}
 	
 	static class ByHeightFirst implements Comparator<Rectangle> {
