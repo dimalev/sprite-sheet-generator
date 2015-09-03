@@ -68,7 +68,6 @@ public class SpriteSheet {
   public BufferedImage getOutputImage() {
     BufferedImage sheet = new BufferedImage(mBoundingBox.width, mBoundingBox.height, BufferedImage.TYPE_INT_ARGB);
     for(BaseSprite sprite : mSprites) {
-      System.out.println(sprite.x + ", " + sprite.y);
       sprite.printToImage(sheet);
     }
     sheet.flush();

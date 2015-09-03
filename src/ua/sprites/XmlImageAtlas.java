@@ -60,7 +60,7 @@ public class XmlImageAtlas extends DefaultHandler {
         if(sprite.type != BaseSprite.Type.IMAGE) continue;
         s = String.format(
           TEXTURE,
-          ((SingleFileSprite)sprite).getName(),
+          ((ImageSprite)sprite).getName(),
           sprite.x,
           sprite.y,
           sprite.width,
@@ -103,7 +103,7 @@ public class XmlImageAtlas extends DefaultHandler {
     int y = Integer.parseInt(attrs.getValue("y"));
     int width = Integer.parseInt(attrs.getValue("width"));
     int height = Integer.parseInt(attrs.getValue("height"));
-    SingleFileSprite sprite = new SingleFileSprite(name, mAtlasImage.getSubimage(x, y, width, height));
+    ImageSprite sprite = new ImageSprite(name, mAtlasImage.getSubimage(x, y, width, height));
     mSheet.add(sprite);
   }
 

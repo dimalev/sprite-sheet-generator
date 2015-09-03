@@ -7,14 +7,14 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-public class SingleFileSprite extends BaseSprite {
-  public static SingleFileSprite fromFile(Path path) {
+public class ImageSprite extends BaseSprite {
+  public static ImageSprite fromFile(Path path) {
     BufferedImage img = null;
     try {
       img = ImageIO.read(new File(path.toString()));
       String fileName = path.getFileName().toString();
       int lastDot = fileName.lastIndexOf(".");
-      return new SingleFileSprite(fileName.substring(0, lastDot), img);
+      return new ImageSprite(fileName.substring(0, lastDot), img);
     } catch (IOException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
@@ -28,7 +28,7 @@ public class SingleFileSprite extends BaseSprite {
 
   public BufferedImage getImage() { return mImage; }
 
-  public SingleFileSprite(String name, BufferedImage bi) {
+  public ImageSprite(String name, BufferedImage bi) {
     type = Type.IMAGE;
     mName = name;
     mImage = bi;
