@@ -15,16 +15,17 @@ import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Task;
 
 public class Main extends Task {
-	
 	protected String mAtlas;
 	protected String mSprite;
 	protected String mOutputDirectory;
+	protected String mOutputFnt;
 	protected String mInputDirectory;
-	
+
 	public void setAtlas(String atlas) { mAtlas = atlas; }
 	public void setSprite(String sprite) { mSprite = sprite; }
 	public void setOutput(String output) { mOutputDirectory = output; }
-	public void setInput(String input) { mInputDirectory = input; }	
+	public void setOutputFnt(String outputFnt) { mOutputFnt = outputFnt; }
+	public void setInput(String input) { mInputDirectory = input; }
 
   public static void main(String[] argv) throws IOException {
     System.out.println("hello, lets start");
@@ -76,141 +77,188 @@ public class Main extends Task {
       else if("-f".equals(in)) nextIsFontOut = true;
       else if("-d".equals(in)) nextIsDirectory = true;
     }
-    
+
     List<BaseSprite> allSprites = new LinkedList<>();
     List<Path> used = new LinkedList<Path>();
     paths.stream()
-    	.filter((path) -> !path.endsWith(".xml"))
-    	.forEach((path) -> {
-    		System.out.format("Reading as xml: %s%n", path.toString());
-    		used.add(path);
-    		try {
-    			SpriteSheet sheet = XmlImageAtlas.load(path);
-    			allSprites.addAll(sheet.getSprites());
-        		System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
-    			used.add(sheet.atlasFile);
-    		} catch(Exception e) {
-    			System.out.format("Error parsing %s%n", path.toString());
-    		}
-    	});
-    
-    paths.removeAll(used);
-    
-    paths.stream().map(ImageSprite::fromFile).forEach(allSprites::add);
-    
-   	if(null != outputDirectory) {
-   	    try {
-    		for(BaseSprite bsprite : allSprites) {
-    			ImageSprite sprite = (ImageSprite)bsprite;
-    			ImageIO.write(sprite.getImage(), "png", new File(outputDirectory.toString(), sprite.getName() + ".png"));
-    		}
-        } catch(Exception ex) {
-        	ex.printStackTrace();
-        	System.err.format("Exception: %s%n", ex);
+      .filter((path) -> path.endsWith(".xml"))
+      .forEach((path) -> {
+        System.out.format("Reading as xml: %s%n", path.toString());
+        used.add(path);
+        try {
+          SpriteSheet sheet = XmlImageAtlas.load(path);
+          allSprites.addAll(sheet.getSprites());
+          System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
+          used.add(sheet.atlasFile);
+        } catch(Exception e) {
+          System.out.format("Error parsing %s%n", path.toString());
         }
-   	}
-    
-    if(null != spriteFile || null != atlasFile) {
-    	SpriteSheet sheet = new SpriteSheet();
-    	sheet.addAll(allSprites);
-    	sheet.xmlFile = atlasFile;
-    	sheet.atlasFile = spriteFile;
-    	sheet.pack();
-    	
-    	if(null != sheet.atlasFile) {
-    		System.out.format("Writing image into %s%n", sheet.atlasFile.toString());
-    		ImageIO.write(
-    			sheet.getOutputImage(),
-    			"png",
-    			sheet.atlasFile.toFile() 
-    		);
-    	}
+      });
 
-    	if(null != sheet.xmlFile) { 
-    		System.out.format("Writing sheet xml into %s%n", sheet.xmlFile.toString());
-    		XmlImageAtlas.save(
-    			sheet.xmlFile, 
-    			null == sheet.atlasFile ? "no file" : sheet.atlasFile.toString(), 
-    			sheet
-    		);
-    	}
+    List<Font> fonts = new LinkedList<Font>();
+    paths.stream()
+      .filter((path) -> path.endsWith(".fnt"))
+      .forEach((path) -> {
+        System.out.format("Reading as fnt: %s%n", path.toString());
+        used.add(path);
+        try {
+          Font fnt = FntSaver.load(path, new Font());
+          fonts.add(fnt);
+          allSprites.addAll(fnt.getGlyphs());
+          for(Font.Page page : fnt.pages) {
+            System.out.format("Image file used: %s%n", page.imagePath.toString());
+            used.add(page.imagePath);
+          }
+        } catch(Exception e) {
+          System.out.format("Error parsing %s%n", path.toString());
+        }
+      });
+
+    paths.removeAll(used);
+
+    paths.stream().map(ImageSprite::fromFile).forEach(allSprites::add);
+
+      if(null != outputDirectory) {
+          try {
+        for(BaseSprite bsprite : allSprites) {
+          ImageSprite sprite = (ImageSprite)bsprite;
+          ImageIO.write(sprite.getImage(), "png", new File(outputDirectory.toString(), sprite.getName() + ".png"));
+        }
+        } catch(Exception ex) {
+          ex.printStackTrace();
+          System.err.format("Exception: %s%n", ex);
+        }
+      }
+
+    if(null != spriteFile || null != atlasFile) {
+      SpriteSheet sheet = new SpriteSheet();
+      sheet.addAll(allSprites);
+      sheet.xmlFile = atlasFile;
+      sheet.atlasFile = spriteFile;
+      sheet.pack();
+
+      if(null != sheet.atlasFile) {
+        System.out.format("Writing image into %s%n", sheet.atlasFile.toString());
+        ImageIO.write(
+          sheet.getOutputImage(),
+          "png",
+          sheet.atlasFile.toFile() 
+        );
+      }
+
+      if(null != sheet.xmlFile) {
+        System.out.format("Writing sheet xml into %s%n", sheet.xmlFile.toString());
+        XmlImageAtlas.save(
+          sheet.xmlFile,
+          null == sheet.atlasFile ? "no file" : sheet.atlasFile.toString(),
+          sheet
+        );
+      }
+
+      if(null != fontFile) {
+        FntSaver.save(fontFile, fonts.get(0));
+      }
     }
   }
-  
-  public void execute() throws BuildException {
-	    List<Path> paths = new LinkedList<>();
-        Path inputPath = FileSystems.getDefault().getPath(mInputDirectory);
-        if(Files.isDirectory(inputPath)) {
-        	try {
-        		paths.addAll(Files.list(inputPath).collect(Collectors.toList()));
-    		} catch(IOException e) {
-    			System.out.format("Error reading directory %s%n", inputPath.toString());
-    			throw new BuildException();
-    		}
-        } else paths.add(inputPath);
-  	
-        List<BaseSprite> allSprites = new LinkedList<>();
-        List<Path> used = new LinkedList<Path>();
-        paths.stream()
-        	.filter((path) -> path.endsWith(".xml"))
-        	.forEach((path) -> {
-        		System.out.format("Reading as xml: %s%n", path.toString());
-        		used.add(path);
-        		try {
-        			SpriteSheet sheet = XmlImageAtlas.load(path);
-        			allSprites.addAll(sheet.getSprites());
-            		System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
-        			used.add(sheet.atlasFile);
-        		} catch(Exception e) {
-        			System.out.format("Error parsing %s%n", path.toString());
-        		}
-        	});
-        
-        paths.removeAll(used);
-        
-        paths.stream().map(ImageSprite::fromFile).forEach(allSprites::add);
-        
-       	if(null != mOutputDirectory) {
-       	    try {
-        		for(BaseSprite bsprite : allSprites) {
-        			ImageSprite sprite = (ImageSprite)bsprite;
-        			ImageIO.write(sprite.getImage(), "png", new File(mOutputDirectory, sprite.getName() + ".png"));
-        		}
-            } catch(Exception ex) {
-            	ex.printStackTrace();
-            	System.err.format("Exception: %s%n", ex);
-            }
-       	}
-        
-        if(null != mSprite || null != mAtlas) {
-        	SpriteSheet sheet = new SpriteSheet();
-        	sheet.addAll(allSprites);
-        	sheet.xmlFile = FileSystems.getDefault().getPath(mAtlas);
-        	sheet.atlasFile = FileSystems.getDefault().getPath(mSprite);
-        	sheet.pack();
-        	
-        	if(null != sheet.atlasFile) {
-        		System.out.format("Writing image into %s%n", sheet.atlasFile.toString());
-        		try {
-        			ImageIO.write(
-        				sheet.getOutputImage(),
-        				"png",
-        				sheet.atlasFile.toFile() 
-        			);
-        		} catch(IOException e) {
-        			System.out.format("Error wring atlas %s%n", sheet.atlasFile.toString());
-        			throw new BuildException();
-        		}
-        	}
 
-        	if(null != sheet.xmlFile) { 
-        		System.out.format("Writing sheet xml into %s%n", sheet.xmlFile.toString());
-        		XmlImageAtlas.save(
-        			sheet.xmlFile, 
-        			null == sheet.atlasFile ? "no file" : sheet.atlasFile.toString(), 
-        			sheet
-        		);
-        	}
+  public void execute() throws BuildException {
+      List<Path> paths = new LinkedList<>();
+      Path inputPath = FileSystems.getDefault().getPath(mInputDirectory);
+      if(Files.isDirectory(inputPath)) {
+        try {
+          paths.addAll(Files.list(inputPath).collect(Collectors.toList()));
+        } catch(IOException e) {
+          System.out.format("Error reading directory %s%n", inputPath.toString());
+          throw new BuildException();
+        }
+      } else paths.add(inputPath);
+
+      List<BaseSprite> allSprites = new LinkedList<>();
+      List<Path> used = new LinkedList<Path>();
+      for(Path path : paths) {
+        if(path.toString().endsWith("xml")) {
+            System.out.format("Reading as xml: %s%n", path.toString());
+            used.add(path);
+            try {
+              SpriteSheet sheet = XmlImageAtlas.load(path);
+              allSprites.addAll(sheet.getSprites());
+              System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
+              used.add(sheet.atlasFile);
+            } catch(Exception e) {
+              System.out.format("Error parsing %s%n", path.toString());
+            }
+        }
+      }
+
+    List<Font> fonts = new LinkedList<Font>();
+    for(Path path : paths) {
+      if(path.toString().endsWith("fnt")) {
+        System.out.format("Reading as fnt: %s%n", path.toString());
+        used.add(path);
+        try {
+          Font fnt = FntSaver.load(path, new Font());
+          fonts.add(fnt);
+          allSprites.addAll(fnt.getGlyphs());
+          for(Font.Page page : fnt.pages) {
+            System.out.format("Image file used: %s%n", page.imagePath.toString());
+            used.add(page.imagePath);
+          }
+        } catch(Exception e) {
+          System.out.format("Error parsing %s%n", path.toString());
+        }
+      }
+    }
+
+        paths.removeAll(used);
+
+        paths.stream().map(ImageSprite::fromFile).forEach(allSprites::add);
+
+          if(null != mOutputDirectory) {
+              try {
+            for(BaseSprite bsprite : allSprites) {
+              ImageSprite sprite = (ImageSprite)bsprite;
+              ImageIO.write(sprite.getImage(), "png", new File(mOutputDirectory, sprite.getName() + ".png"));
+            }
+            } catch(Exception ex) {
+              ex.printStackTrace();
+              System.err.format("Exception: %s%n", ex);
+            }
+          }
+
+        if(null != mSprite || null != mAtlas) {
+          SpriteSheet sheet = new SpriteSheet();
+          sheet.addAll(allSprites);
+          if(null != mAtlas) sheet.xmlFile = FileSystems.getDefault().getPath(mAtlas);
+          if(null != mSprite) sheet.atlasFile = FileSystems.getDefault().getPath(mSprite);
+          sheet.pack();
+
+          if(null != sheet.atlasFile) {
+            System.out.format("Writing image into %s%n", sheet.atlasFile.toString());
+            try {
+              ImageIO.write(
+                sheet.getOutputImage(),
+                "png",
+                sheet.atlasFile.toFile()
+              );
+            } catch(IOException e) {
+              System.out.format("Error wring atlas %s%n", sheet.atlasFile.toString());
+              throw new BuildException();
+            }
+          }
+
+          if(null != sheet.xmlFile) {
+            System.out.format("Writing sheet xml into %s%n", sheet.xmlFile.toString());
+            XmlImageAtlas.save(
+              sheet.xmlFile,
+              null == sheet.atlasFile ? "no file" : sheet.atlasFile.toString(),
+              sheet
+            );
+          }
+
+          if(null != mOutputFnt) {
+            System.out.format("Writing font fnt into %s%n", mOutputFnt);
+            FntSaver.save(FileSystems.getDefault().getPath(mOutputFnt), fonts.get(0));
+          }
         }
   }
 }
