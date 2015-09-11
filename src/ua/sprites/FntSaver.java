@@ -25,10 +25,10 @@ import javax.imageio.ImageIO;
 public class FntSaver extends DefaultHandler {
   protected static final String FONT_START = "<font>";
   protected static final String INFO =
-    "  <info face=\"%s\" size=\"%d\" bold=\"%d\" italic=\"%d\" charset=\"%s\" " +
+    "  <info face=\"%s\" size=\"%.0f\" bold=\"%d\" italic=\"%d\" charset=\"%s\" " +
     "unicode=\"%d\" stretchH=\"%d\" smooth=\"%d\" aa=\"%d\" padding=\"%d,%d,%d,%d\" spacing=\"%d,%d\" />";
   protected static final String COMMON =
-    "  <common lineHeight=\"%d\" base=\"%d\" scaleW=\"%d\" scaleH=\"%d\" pages=\"%d\" packed=\"%d\" />";
+    "  <common lineHeight=\"%.0f\" base=\"%.0f\" scaleW=\"%.0f\" scaleH=\"%.0f\" pages=\"%d\" packed=\"%d\" />";
   protected static final String PAGES_START = "  <pages>";
   protected static final String PAGE = "    <page id=\"%d\" file=\"%s\" />";
   protected static final String PAGES_END = "  </pages>";
@@ -45,10 +45,10 @@ public class FntSaver extends DefaultHandler {
     try(BufferedWriter writer = Files.newBufferedWriter(filePath, Charset.forName("UTF-8"))) {
       writer.write(FONT_START, 0, FONT_START.length());
       writer.newLine();
-      String s = String.format(INFO, fnt.face, 40, 0, 0, "", 0, 100, 1, 1, 0,0,0,0,0,0);
+      String s = String.format(INFO, fnt.face, fnt.size, 0, 0, "", 0, 100, 1, 1, 0,0,0,0,0,0);
       writer.write(s, 0, s.length());
       writer.newLine();
-      s = String.format(COMMON, 42, 35, 128, 64, 1, 0);
+      s = String.format(COMMON, fnt.lineHeight, fnt.base, fnt.scaleW, fnt.scaleH, 1, 0);
       writer.write(s, 0, s.length());
       writer.newLine();
       writer.write(PAGES_START, 0, PAGES_START.length());
@@ -221,7 +221,7 @@ public class FntSaver extends DefaultHandler {
 
     Font.Page page = mFont.getPage(Integer.parseInt(attrs.getValue("page")));
     Glyph glyph = new Glyph(
-        attrs.getValue("letter"),
+        fromLetter(attrs.getValue("letter")),
         page.image.getSubimage(x, y, width, height),
         width, 0.0d, height, 0.0d, Double.parseDouble(attrs.getValue("xadvance"))
     );
