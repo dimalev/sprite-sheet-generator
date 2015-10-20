@@ -35,7 +35,7 @@ public class FntSaver extends DefaultHandler {
   protected static final String CHARS = "chars count=%d";
   protected static final String CHARS_START = "  <chars>";
   protected static final String CHAR =
-    "    <char id=\"%d\" x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" xoffset=\"%d\" yoffset=\"%d\" " +
+    "    <char id=\"%d\" x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" xoffset=\"%.0f\" yoffset=\"%.0f\" " +
     "xadvance=\"%.0f\" page=\"%d\" chnl=\"%d\" letter=\"%s\" />";
   protected static final String CHARS_END = "  </chars>";
   protected static final String FONT_END = "</font>";
@@ -66,7 +66,7 @@ public class FntSaver extends DefaultHandler {
       for(Glyph cc : glyphs) {
         s = String.format(
             CHAR, cc.getName().codePointAt(0),
-            cc.x, cc.y, cc.width, cc.height, 0, 0, cc.w1, 0, 0, toLetter(cc.getName())
+            cc.x, cc.y, cc.width, cc.height, cc.xoffset, cc.yoffset, cc.w1, 0, 0, toLetter(cc.getName())
         );
         writer.write(s, 0, s.length());
         writer.newLine();
@@ -220,10 +220,15 @@ public class FntSaver extends DefaultHandler {
     int height = Integer.parseInt(attrs.getValue("height"));
 
     Font.Page page = mFont.getPage(Integer.parseInt(attrs.getValue("page")));
+    String letter = attrs.getValue("letter");
+    if(null == letter)
+    	letter = new String(Character.toChars(Integer.parseInt(attrs.getValue("id"))));
+    else letter = fromLetter(letter);
     Glyph glyph = new Glyph(
-        fromLetter(attrs.getValue("letter")),
-        page.image.getSubimage(x, y, width, height),
-        width, 0.0d, height, 0.0d, Double.parseDouble(attrs.getValue("xadvance"))
+        letter,
+        (width > 0 && height > 0 ? page.image.getSubimage(x, y, width, height) : null),
+        width, 0.0d, height, 0.0d, Double.parseDouble(attrs.getValue("xadvance")),
+        Double.parseDouble(attrs.getValue("xoffset")), Double.parseDouble(attrs.getValue("yoffset"))
     );
 
     page.glyphs.add(glyph);
@@ -242,12 +247,26 @@ public class FntSaver extends DefaultHandler {
   }
 
   protected static String fromLetter(String c) {
-    if("space".equals(c)) return " ";
-    return c;
+	  switch(c) {
+	  case "space": return " ";
+	  case "double quote": return "\"";
+	  case "ampersand": return "&";
+	  case "quote": return "'";
+	  case "slash": return "/";
+	  case "backslash": return "\\";
+	  case "less then": return "<";
+	  case "greater then": return ">";
+	  }
+	  return c;
   }
 
   protected static String toLetter(String c) {
-    if(" ".equals(c)) return "space";
+	  switch(c) {
+	  case "\"": return "&quot;";
+	  case "&": return "&amp;";
+	  case "<": return "&lt;";
+	  case ">": return "&gt;";
+	  }
     return c;
   }
 }

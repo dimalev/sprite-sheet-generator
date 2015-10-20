@@ -16,14 +16,18 @@ import org.apache.tools.ant.Task;
 
 public class Main extends Task {
 	protected String mAtlas;
+	protected int mAtlasPadding = 0;
 	protected String mSprite;
 	protected String mOutputDirectory;
+	protected String mOutputFntDirectory;
 	protected String mOutputFnt;
 	protected String mInputDirectory;
 
 	public void setAtlas(String atlas) { mAtlas = atlas; }
+	public void setAtlasPadding(int padding) { mAtlasPadding = padding; }
 	public void setSprite(String sprite) { mSprite = sprite; }
 	public void setOutput(String output) { mOutputDirectory = output; }
+	public void setOutputFntDir(String output) { mOutputFntDirectory = output; }
 	public void setOutputFnt(String outputFnt) { mOutputFnt = outputFnt; }
 	public void setInput(String input) { mInputDirectory = input; }
 
@@ -35,10 +39,12 @@ public class Main extends Task {
     Path fontFile = null;
     Path spriteFile = null;
     Path outputDirectory = null;
+    int atlasPadding = 0;
 
     boolean nextIsInput = false;
     boolean nextIsSpriteOut = false;
     boolean nextIsAtlasOut = false;
+    boolean nextIsAtlasPadding = false;
     boolean nextIsFontOut = false;
     boolean nextIsDirectory = false;
 
@@ -61,6 +67,11 @@ public class Main extends Task {
         nextIsAtlasOut = false;
         continue;
       }
+      if(nextIsAtlasPadding) {
+          atlasPadding = Integer.parseInt(in);
+          nextIsAtlasPadding= false;
+          continue;
+        }
       if(nextIsFontOut) {
         fontFile = FileSystems.getDefault().getPath(in);
         nextIsFontOut = false;
@@ -76,45 +87,46 @@ public class Main extends Task {
       else if("-x".equals(in)) nextIsAtlasOut = true;
       else if("-f".equals(in)) nextIsFontOut = true;
       else if("-d".equals(in)) nextIsDirectory = true;
+      else if("-p".equals(in)) nextIsAtlasPadding = true;
     }
 
     List<BaseSprite> allSprites = new LinkedList<>();
     List<Path> used = new LinkedList<Path>();
-    paths.stream()
-      .filter((path) -> path.endsWith(".xml"))
-      .forEach((path) -> {
-        System.out.format("Reading as xml: %s%n", path.toString());
-        used.add(path);
-        try {
-          SpriteSheet sheet = XmlImageAtlas.load(path);
-          allSprites.addAll(sheet.getSprites());
-          System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
-          used.add(sheet.atlasFile);
-        } catch(Exception e) {
-          System.out.format("Error parsing %s%n", path.toString());
-        }
-      });
-
-    List<Font> fonts = new LinkedList<Font>();
-    paths.stream()
-      .filter((path) -> path.endsWith(".fnt"))
-      .forEach((path) -> {
-        System.out.format("Reading as fnt: %s%n", path.toString());
-        used.add(path);
-        try {
-          Font fnt = FntSaver.load(path, new Font());
-          fonts.add(fnt);
-          allSprites.addAll(fnt.getGlyphs());
-          for(Font.Page page : fnt.pages) {
-            System.out.format("Image file used: %s%n", page.imagePath.toString());
-            used.add(page.imagePath);
+    for(Path path : paths) {
+      if(path.toString().endsWith("xml")) {
+          System.out.format("Reading as xml: %s%n", path.toString());
+          used.add(path);
+          try {
+            SpriteSheet sheet = XmlImageAtlas.load(path);
+            allSprites.addAll(sheet.getSprites());
+            System.out.format("Image file used: %s%n", sheet.atlasFile.toString());
+            used.add(sheet.atlasFile);
+          } catch(Exception e) {
+            System.out.format("Error parsing %s%n", path.toString());
           }
-        } catch(Exception e) {
-          System.out.format("Error parsing %s%n", path.toString());
-        }
-      });
+      }
+    }
 
-    paths.removeAll(used);
+  List<Font> fonts = new LinkedList<Font>();
+  for(Path path : paths) {
+    if(path.toString().endsWith("fnt")) {
+      System.out.format("Reading as fnt: %s%n", path.toString());
+      used.add(path);
+      try {
+        Font fnt = FntSaver.load(path, new Font());
+        fonts.add(fnt);
+        allSprites.addAll(fnt.getGlyphs());
+        for(Font.Page page : fnt.pages) {
+          System.out.format("Image file used: %s%n", page.imagePath.toString());
+          used.add(page.imagePath);
+        }
+      } catch(Exception e) {
+        System.out.format("Error parsing %s%n", path.toString());
+      }
+    }
+  }
+
+      paths.removeAll(used);
 
     paths.stream().map(ImageSprite::fromFile).forEach(allSprites::add);
 
@@ -135,6 +147,7 @@ public class Main extends Task {
       sheet.addAll(allSprites);
       sheet.xmlFile = atlasFile;
       sheet.atlasFile = spriteFile;
+      sheet.padding = atlasPadding;
       sheet.pack();
 
       if(null != sheet.atlasFile) {
@@ -205,6 +218,7 @@ public class Main extends Task {
           }
         } catch(Exception e) {
           System.out.format("Error parsing %s%n", path.toString());
+          e.printStackTrace();
         }
       }
     }
@@ -230,10 +244,11 @@ public class Main extends Task {
           sheet.addAll(allSprites);
           if(null != mAtlas) sheet.xmlFile = FileSystems.getDefault().getPath(mAtlas);
           if(null != mSprite) sheet.atlasFile = FileSystems.getDefault().getPath(mSprite);
+          sheet.padding = mAtlasPadding;
           sheet.pack();
 
           if(null != sheet.atlasFile) {
-            System.out.format("Writing image into %s%n", sheet.atlasFile.toString());
+            System.out.format("Writing image into %s(%dx%d)%n", sheet.atlasFile.toString(), sheet.getWidth(), sheet.getHeight());
             try {
               ImageIO.write(
                 sheet.getOutputImage(),
@@ -255,8 +270,17 @@ public class Main extends Task {
             );
           }
 
+          if(null != mOutputFntDirectory) {
+            for(Font font : fonts) {
+              System.out.format("Writing font fnt into %s.xml%n", font.face);
+              
+              FntSaver.save(new File(mOutputFntDirectory, font.face + ".xml").toPath(), font);
+            }
+          }
+
           if(null != mOutputFnt) {
             System.out.format("Writing font fnt into %s%n", mOutputFnt);
+            
             FntSaver.save(FileSystems.getDefault().getPath(mOutputFnt), fonts.get(0));
           }
         }

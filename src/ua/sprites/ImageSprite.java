@@ -11,6 +11,7 @@ public class ImageSprite extends BaseSprite {
   public static ImageSprite fromFile(Path path) {
     BufferedImage img = null;
     try {
+      //System.out.println(path.toString());
       img = ImageIO.read(new File(path.toString()));
       String fileName = path.getFileName().toString();
       int lastDot = fileName.lastIndexOf(".");
@@ -32,12 +33,14 @@ public class ImageSprite extends BaseSprite {
     type = Type.IMAGE;
     mName = name;
     mImage = bi;
-    width = bi.getWidth();
-    height = bi.getHeight();
+    if(null != mImage) {
+    	width = bi.getWidth();
+    	height = bi.getHeight();
+    }
   }
 
   @Override
   public void printToImage(BufferedImage output) {
-    output.getGraphics().drawImage(mImage, x, y, null);
+    if(null != mImage) output.getGraphics().drawImage(mImage, x, y, null);
   }
 }

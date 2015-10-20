@@ -17,8 +17,13 @@ public class SpriteSheet {
 
   public Path xmlFile;
   public Path atlasFile;
+  
+  public int padding = 0;
 
   public List<BaseSprite> getSprites() { return mSprites; }
+  
+  public int getWidth() { return mBoundingBox.width; }
+  public int getHeight() { return mBoundingBox.height; }
 
   public void addAll(Collection<BaseSprite> sprites) {
     mSprites.addAll(sprites);
@@ -51,16 +56,16 @@ public class SpriteSheet {
   public boolean packInRectangle(Rectangle[] rects, Rectangle target) {
     Arrays.sort(rects, new ByHeightFirst());
 
-    int top = 0, nextTop = 0, left = 0, count = rects.length;
+    int top = padding, nextTop = padding, left = padding, count = rects.length;
     for(int i = 0; i < count; ++i) {
-      if(left + rects[i].width > target.width) {
+      if(left + rects[i].width + padding > target.width) {
         top = nextTop;
-        left = 0;
+        left = padding;
       }
       rects[i].x = left; rects[i].y = top;
-      nextTop = Math.max(nextTop, top + rects[i].height);
-      if(nextTop > target.height) return false;
-      left += rects[i].width;
+      nextTop = Math.max(nextTop, top + rects[i].height + padding);
+      if(nextTop > target.height + padding) return false;
+      left += rects[i].width + padding;
     }
     return true;
   }
