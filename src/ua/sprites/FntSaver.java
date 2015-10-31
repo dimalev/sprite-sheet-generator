@@ -38,10 +38,15 @@ public class FntSaver extends DefaultHandler {
     "    <char id=\"%d\" x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" xoffset=\"%.0f\" yoffset=\"%.0f\" " +
     "xadvance=\"%.0f\" page=\"%d\" chnl=\"%d\" letter=\"%s\" />";
   protected static final String CHARS_END = "  </chars>";
+  protected static final String KERNINGS_START = "  <kernings>";
+  protected static final String KERNING =
+    "    <kerning first=\"%d\" second=\"%d\" amount=\"%.0f\" />";
+  protected static final String KERNINGS_END = "  </kernings>";
   protected static final String FONT_END = "</font>";
 
   public static void save(Path filePath, Font fnt) {
     List<Glyph> glyphs = fnt.getGlyphs();
+    List<Kerning> kernings = fnt.kernings;
     try(BufferedWriter writer = Files.newBufferedWriter(filePath, Charset.forName("UTF-8"))) {
       writer.write(FONT_START, 0, FONT_START.length());
       writer.newLine();
@@ -65,13 +70,22 @@ public class FntSaver extends DefaultHandler {
       writer.newLine();
       for(Glyph cc : glyphs) {
         s = String.format(
-            CHAR, cc.getName().codePointAt(0),
+            CHAR, cc.id,
             cc.x, cc.y, cc.width, cc.height, cc.xoffset, cc.yoffset, cc.w1, 0, 0, toLetter(cc.getName())
         );
         writer.write(s, 0, s.length());
         writer.newLine();
       }
       writer.write(CHARS_END, 0, CHARS_END.length());
+      writer.newLine();
+      writer.write(KERNINGS_START, 0, KERNINGS_START.length());
+      writer.newLine();
+      for(Kerning k : kernings) {
+        s = String.format(KERNING, k.left, k.right, k.kerning);
+        writer.write(s, 0, s.length());
+        writer.newLine();
+      }
+      writer.write(KERNINGS_END, 0, KERNINGS_END.length());
       writer.newLine();
       writer.write(FONT_END, 0, FONT_END.length());
       writer.newLine();
@@ -102,6 +116,8 @@ public class FntSaver extends DefaultHandler {
   protected boolean mIsInsidePage = false;
   protected boolean mIsInsideChars = false;
   protected boolean mIsInsideChar = false;
+  protected boolean mIsInsideKernings = false;
+  protected boolean mIsInsideKerning = false;
 
   protected FntSaver(Font font) {
     mFont = font;
@@ -115,6 +131,8 @@ public class FntSaver extends DefaultHandler {
     else if("page".equals(qName)) pageStart(attrs);
     else if("chars".equals(qName)) charsStart(attrs);
     else if("char".equals(qName)) charStart(attrs);
+    else if("kernings".equals(qName)) kerningsStart(attrs);
+    else if("kerning".equals(qName)) kerningStart(attrs);
   }
 
   public void endElement(String uri, String localName, String qName) {
@@ -125,6 +143,8 @@ public class FntSaver extends DefaultHandler {
     else if("page".equals(qName)) pageEnd();
     else if("chars".equals(qName)) charsEnd();
     else if("char".equals(qName)) charEnd();
+    else if("kernings".equals(qName)) kerningsEnd();
+    else if("kerning".equals(qName)) kerningEnd();
   }
 
   protected void fontStart(Attributes attrs) {
@@ -218,14 +238,15 @@ public class FntSaver extends DefaultHandler {
     int y = Integer.parseInt(attrs.getValue("y"));
     int width = Integer.parseInt(attrs.getValue("width"));
     int height = Integer.parseInt(attrs.getValue("height"));
+    int id = Integer.parseInt(attrs.getValue("id"));
 
     Font.Page page = mFont.getPage(Integer.parseInt(attrs.getValue("page")));
     String letter = attrs.getValue("letter");
     if(null == letter)
-    	letter = new String(Character.toChars(Integer.parseInt(attrs.getValue("id"))));
+    	letter = new String(Character.toChars(id));
     else letter = fromLetter(letter);
     Glyph glyph = new Glyph(
-        letter,
+        letter, id,
         (width > 0 && height > 0 ? page.image.getSubimage(x, y, width, height) : null),
         width, 0.0d, height, 0.0d, Double.parseDouble(attrs.getValue("xadvance")),
         Double.parseDouble(attrs.getValue("xoffset")), Double.parseDouble(attrs.getValue("yoffset"))
@@ -241,6 +262,28 @@ public class FntSaver extends DefaultHandler {
   protected void charsEnd() {
     mIsInsideChars = false;
   }
+
+  protected void kerningsStart(Attributes attrs) {
+	 mIsInsideKernings = true;
+  }
+
+	  protected void kerningStart(Attributes attrs) {
+	    // <kerning first="86" second="90" amount="3" />
+	    if(!mIsInsideKernings) return;
+
+	    int left = Integer.parseInt(attrs.getValue("first"));
+	    int right = Integer.parseInt(attrs.getValue("second"));
+	    double kerning = Double.parseDouble(attrs.getValue("amount"));
+
+	    mFont.kernings.add(new Kerning(left, right, kerning));
+	  }
+
+	  protected void kerningEnd() {
+	  }
+
+	  protected void kerningsEnd() {
+	    mIsInsideKernings = false;
+	  }
 
   protected void fontEnd() {
     mIsInsideFont = false;

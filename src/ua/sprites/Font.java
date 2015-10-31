@@ -2,6 +2,7 @@ package ua.sprites;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.ArrayList;
 
 import java.nio.file.Path;
 import java.awt.geom.Rectangle2D;
@@ -25,7 +26,8 @@ public class Font {
 
   public Path fntPath;
 
-  public List<Page> pages = new LinkedList<Page>();
+  public List<Page> pages = new LinkedList<>();
+  public List<Kerning> kernings = new ArrayList<>();
 
   public static class Page {
     public int id;
